@@ -16,6 +16,22 @@ def send_tcp_syn(destination, port):
         r.show()
     print()
 
-send_ping("google.com")
-#send_ping("8.8.8.8")
-#send_tcp_syn("google.com", 80)
+scelta = 1
+while scelta != 0:
+    print("-------------------- MENU: --------------------")
+    print("1 - Invia pacchetto ICMP")
+    print("2 - Invia segmento TCP SYN")
+    print("0 - Chiudi il programma")
+    print("\nDigitare il numero della scelta desiderata\n>", end=" ")
+    scelta = int(input())
+    match scelta:
+        case 1:
+            print("Host destinatario:", end=" ")
+            dest = input()
+            send_ping(dest)
+        case 2:
+            print("Host destinatario:", end=" ")
+            dest = input()
+            print("Porta destinatario:", end=" ")
+            dest_port = int(input())
+            send_tcp_syn(dest, dest_port)

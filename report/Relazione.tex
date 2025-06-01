@@ -90,7 +90,7 @@ Creare e inviare pacchetti ICMP e TCP con Scapy, catturarli con Wireshark e anal
 	\item Analizzare: IP di origine/destinazione, porte, checksum, TTL
 \end{itemize}
 
-\subsubsection{Estensioni opzionali}
+\subsubsection{Estensioni}
 \begin{itemize}
 	\item Inviare un pacchetto TCP con flag personalizzati
 	\item Visualizzare e spiegare le differenze tra ICMP e TCP
@@ -129,6 +129,8 @@ Per la cattura del traffico di rete ho utilizzato wireshark con il filtro \textt
 Riporto in seguito il dettaglio della richiesta e della risposta.
 
 \subsection{ICMP Echo Request}
+\label{subsection:ICMPEchoRequest}
+
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=1\textwidth]{icmp_echo_request}
@@ -154,12 +156,84 @@ Come prima il checksum dell'header IP è presente ma non verificato. Nel caso di
 
 \chapter{Segmenti TCP SYN}
 
-\section{Generazione dei segmenti}
+\section{Generazione dei pacchetti con Scapy}
+Si vuole inviare un segmento \texttt{TCP} con il flag \texttt{SYN} a un host: ciò corrisponde alla richiesta di instaurazione di una connessione. Visto che un TCP SYN dà il via al three way handshake, per considerare la connessione instaurata è necessario che l'host da cui parte la richiesta confermi con un ACK finale. Nel nostro caso ciò non avviene, infatti notiamo che il server ritrasmette periodicamente il suo \texttt{SYN ACK} (vedi Figura \ref{tcp_syn_capture}), crendendo che quelli precedenti siano stati perduti durante la trasmissione. \\
+Come nel capitolo precedente, ho utilizzato il metodo \texttt{.sr} della libreria scapy, specificando il tipo \texttt{TCP}, con il flag \texttt{S} attivo (ovvero SYN). Riporto nel Listing \ref{code:tcp_syn} la funzione che ho scritto per poter generare il pacchetto contenente il segmento TCP, che richiede come parametro l'indirizzo IP (o l'hostname) e la porta del destinatario. La funzione stampa anche il risultato dell'operazione.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_syn_capture}
+ 	\caption{Pacchetti catturati da Wireshark}
+	\label{tcp_syn_capture}
+\end{figure}
+
+\begin{lstlisting}[language=Python, caption={Funzione python per la generazione di un segmento \texttt{TCP} con flag \texttt{SYN} attivo}, label={code:tcp_syn}]
+import scapy.all as scapy
+
+def send_tcp_syn(destination, port):
+    print("----- INVIO SYN A", destination, ", PORTA", port, "-----")
+    res = scapy.sr(scapy.IP(dst=destination)/scapy.TCP(dport=port,flags="S"), timeout=4)
+    print("--- RISULTATI: ---")
+    for r in res:
+        r.show()
+    print()
+\end{lstlisting}
+
 \section{Analisi del traffico con Wireshark}
+\subsection{Richiesta TCP con SYN attivo}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_syn_request}
+ 	\caption{Dettaglio del pacchetto trasmesso, con flag SYN attivo}
+	\label{tcp_syn_request}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\textwidth]{tcp_syn_request_ip_layer}
+ 	\caption{Dettaglio dell'header IP}
+	\label{tcp_syn_request_ip_layer}
+\end{figure}
+Controlliamo innanzitutto l'header del protocollo IP (vedi Figura \ref{tcp_syn_request_ip_layer}).
+Come nell'analisi precedente (vedi sezione \ref{subsection:ICMPEchoRequest}) il \texttt{Source Address} e il \texttt{Time To Live} sono rimasti invariati; è rimasta disabilitata anche la validazione dell'header.
+Il \texttt{Destination Address} contiene un indirizzo IP diverso rispetto al precedente, nonostante io abbia mandato il pacchetto sempre a \texttt{google.com}: questo è successo perché il server DNS ha ritenuto opportuno risolvere lo stesso nome di dominio con un altro indirizzo, probabilmente per poter distribuire meglio il carico sui vari server.
+Grazie al campo \texttt{Protocol: TCP} notiamo che nel payload del pacchetto viene trasportato un segmento del protocollo TCP, che andremo ad analizzare (il cui contenuto viene riportato in Figura \ref{tcp_syn_request}.) \\
+Per essere sicuro di comunicare con un server TCP ho scelto come \texttt{Destination Port: 80}: questo perché 80 è il numero di porta well-known attribuito ai server HTTP, e l'HTTP è un protocollo applicativo che utilizza il protocollo TCP a livello di trasporto.
+Il campo \texttt{Source Port: 20} ci dice che scapy ha scelto di utilizzare la porta 20 TCP del mio PC per la comunicazione: probabilmente viene scelta di default quando non si specifica una porta sorgente.
+Questo non dovrebbe però accadere visto che la porta 20 corrisponde alla well-known port per il trasferimento dei dati del protocollo applicativo FTP; avrebbe invece dovuto utilizzare una porta libera (nel range 49152 - 65535) assegnata dal sistema operativo, visto che i client quando instaurano una connessione non hanno bisogno di utilizzare una porta nota. Anche in questo caso il checksum riportato non viene verificato.
+
+\subsection{Risposta TCP con SYN ACK attivi}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_syn_ack_reply}
+ 	\caption{Dettaglio del pacchetto ricevuto con flag SYN e ACK attivi}
+	\label{tcp_syn_ack_reply}
+\end{figure}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\textwidth]{tcp_syn_ack_reply_ip_layer}
+ 	\caption{Dettaglio dell'header IP}
+	\label{tcp_syn_ack_reply_ip_layer}
+\end{figure}
+Visto che si tratta del pacchetto di risposta alla mia richiesta di connessione (Figura \ref{tcp_syn_ack_reply_ip_layer}), gli indirizzi IP riportati sono gli stessi ma scambiati tra mittente e destinatario. Notiamo sempre che il TTL è stato decrementato di qualche unità, che il protocollo della PDU trasportata nei dati del pacchetto IP è il protocollo TCP e che il checksum non è stato verificato. \\
+Passando all'analisi del protocollo TCP (Figura \ref{tcp_syn_ack_reply}), trattandosi della risposta, anche qua le porte sorgente e destinatario sono scambiate.
+Poiché questo segmento è il secondo step del three way handshake, vediamo che sono attivi i flag \texttt{SYN} e \texttt{ACK}: il server ci sta confermando tramite l'ACK di aver ricevuto la nostra richiesta di connessione, e contemporaneamente chiede al mio host di aprire la connessione inviando il SYN.
+L'ACK number è impostato a 1 per confermare al mio PC di aver ricevuto correttamente tutti i segmenti con numero di sequenza fino allo 0, quindi il prossimo che si aspetta è il segmento con numero di sequenza a 1. 
+Il numero di sequenza del server invece parte da 2249960392, ovvero un numero generato in maniera casuale per evitare di avere segmenti dispersi per la rete con lo stesso sequence number che potrebbero essere ricevuti quando non hanno più nessun senso, dando origine a vari errori.
+
+\subsection{Ritrasmissioni TCP con SYN ACK attivi}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_syn_ack_retransmission}
+ 	\caption{Dettaglio del pacchetto ricevuto in seguito alla ritrasmissione, con flag SYN e ACK attivi}
+	\label{tcp_syn_ack_retransmission}
+\end{figure}
+Il codice python contenuto nel Listing \ref{code:tcp_syn} invia un TCP SYN e riceve l'eventuale risposta, senza però effettuare nient'altro.
+Il three way handshake si considera concluso (e quindi la connessione è stabilita) solo dopo la conferma finale data dall'host richiedente all'host destinatario con un segmento con flag ACK attivo, segmento che il mio host non invia al server.
+Per questo motivo il server crede che il suo SYN ACK non sia mai arrivato a destinazione, causando così la ritrasmissione dello stesso (notiamo infatti che tutto il contenuto del segmento è uguale a quello precedente, vedi Figura \ref{tcp_syn_ack_reply}) allo scadere del tempo di timeout.
 
 \chapter{Segmenti TCP con flag personalizzati}
 
-\section{Generazione dei segmenti}
+\section{Generazione dei pacchetti con Scapy}
 \section{Analisi del traffico con Wireshark}
 
 \end{document}
