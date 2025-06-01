@@ -11,7 +11,7 @@ Creare e inviare pacchetti ICMP e TCP con Scapy, catturarli con Wireshark e anal
 - Catturare i pacchetti in Wireshark e salvarli in .pcap.
 - Analizzare: IP di origine/destinazione, porte, checksum, TTL.
 
-## Estensioni opzionali
+## Estensioni
 
 - Inviare un pacchetto TCP con flag personalizzati.
 - Visualizzare e spiegare le differenze tra ICMP e TCP.

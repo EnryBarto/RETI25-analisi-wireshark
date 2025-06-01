@@ -27,7 +27,7 @@ def send_tcp_flags(destination, port):
     print("E - ECE")
     print("C - CWR")
     print("\nDigitare i caratteri dei flag da attivare (ad esempio \"SR\" per i flag SYN e RST)\n>", end=" ")
-    flgs = input()
+    flgs = input().upper()
     print("----- INVIO FLAG", flgs, "A", destination, ", PORTA", port, "-----")
     res = scapy.sr(scapy.IP(dst=destination)/scapy.TCP(dport=port,flags=flgs), timeout=4) # Invio segmento TCP con flag richiesti attivi
     print("--- RISULTATI: ---")

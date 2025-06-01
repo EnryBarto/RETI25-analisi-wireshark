@@ -67,7 +67,7 @@
 
 \vspace{8mm}
 \begin{center}
-\includegraphics[width=0.7\textwidth]{Copertina}
+\includegraphics[width=0.65\textwidth]{Copertina}
 \end{center}
 \vspace{15mm}
 
@@ -109,7 +109,7 @@ Creare e inviare pacchetti ICMP e TCP con Scapy, catturarli con Wireshark e anal
 
 \section{Generazione dei pacchetti con Scapy}
 
-Si vuole inviare un pacchetto \texttt{ICMP Echo Request} (ping) a un host. Per l'invio ho utilizzato il metodo \texttt{.sr} della libreria scapy, specificando il tipo \texttt{ICMP}. Riporto nel Listing \ref{code:icmp} la funzione che ho scritto per poter generare il pacchetto del ping, che richiede come parametro l'indirizzo IP oppure l'hostname del destinatario. La funzione stampa anche il risultato dell'operazione.
+Si vuole inviare un pacchetto \texttt{ICMP Echo Request} (ping) a un host. Per l'invio ho utilizzato il metodo \texttt{.sr()} della libreria scapy, specificando il tipo \texttt{ICMP}. Riporto nel Listing \ref{code:icmp} la funzione che ho scritto per poter generare il pacchetto del ping, che richiede come parametro l'indirizzo IP oppure l'hostname del destinatario. La funzione stampa anche il risultato dell'operazione.
 
 \begin{lstlisting}[language=Python, caption={Funzione python per la generazione di un pacchetto \texttt{ICMP Echo Request}}, label={code:icmp}]
 import scapy.all as scapy
@@ -157,15 +157,8 @@ Come prima il checksum dell'header IP è presente ma non verificato. Nel caso di
 \chapter{Segmenti TCP SYN}
 
 \section{Generazione dei pacchetti con Scapy}
-Si vuole inviare un segmento \texttt{TCP} con il flag \texttt{SYN} a un host: ciò corrisponde alla richiesta di instaurazione di una connessione. Visto che un TCP SYN dà il via al three way handshake, per considerare la connessione instaurata è necessario che l'host da cui parte la richiesta confermi con un ACK finale. Nel nostro caso ciò non avviene, infatti notiamo che il server ritrasmette periodicamente il suo \texttt{SYN ACK} (vedi Figura \ref{tcp_syn_capture}), crendendo che quelli precedenti siano stati perduti durante la trasmissione. \\
-Come nel capitolo precedente, ho utilizzato il metodo \texttt{.sr} della libreria scapy, specificando il tipo \texttt{TCP}, con il flag \texttt{S} attivo (ovvero SYN). Riporto nel Listing \ref{code:tcp_syn} la funzione che ho scritto per poter generare il pacchetto contenente il segmento TCP, che richiede come parametro l'indirizzo IP (o l'hostname) e la porta del destinatario. La funzione stampa anche il risultato dell'operazione.
-
-\begin{figure}[H]
-	\centering
-	\includegraphics[width=1\textwidth]{tcp_syn_capture}
- 	\caption{Pacchetti catturati da Wireshark}
-	\label{tcp_syn_capture}
-\end{figure}
+Si vuole inviare un segmento \texttt{TCP} con il flag \texttt{SYN} a un host: ciò corrisponde alla richiesta di instaurazione di una connessione. \\
+Come nel capitolo precedente, ho utilizzato il metodo \texttt{.sr()} della libreria scapy, specificando il tipo \texttt{TCP}, con il flag \texttt{S} attivo (ovvero SYN). Riporto nel Listing \ref{code:tcp_syn} la funzione che ho scritto per poter generare il pacchetto contenente il segmento TCP, che richiede come parametro l'indirizzo IP (o l'hostname) e la porta del destinatario. La funzione stampa anche il risultato dell'operazione.
 
 \begin{lstlisting}[language=Python, caption={Funzione python per la generazione di un segmento \texttt{TCP} con flag \texttt{SYN} attivo}, label={code:tcp_syn}]
 import scapy.all as scapy
@@ -180,6 +173,13 @@ def send_tcp_syn(destination, port):
 \end{lstlisting}
 
 \section{Analisi del traffico con Wireshark}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_syn_capture}
+ 	\caption{Pacchetti catturati da Wireshark}
+	\label{tcp_syn_capture}
+\end{figure}
+Visto che un TCP SYN dà il via al three way handshake, per considerare la connessione instaurata è necessario che l'host da cui parte la richiesta confermi con un ACK finale. Nel nostro caso ciò non avviene, infatti notiamo che il server ritrasmette periodicamente il suo \texttt{SYN ACK} (vedi Figura \ref{tcp_syn_capture}), credendo che quelli precedenti siano stati perduti durante la trasmissione. \\
 Il file della cattura contenente i pacchetti sniffati su cui sono stati effettuati gli screenshot, è il file \texttt{/wireshark/tcp{\textunderscore}syn.pcap} .
 
 \subsection{Richiesta TCP con SYN attivo}
@@ -254,7 +254,7 @@ def send_tcp_flags(destination, port):
     print("E - ECE")
     print("C - CWR")
     print("\nDigitare i caratteri dei flag da attivare (ad esempio \"SR\" per i flag SYN e RST)\n>", end=" ")
-    flgs = input()
+    flgs = input().upper()
     print("----- INVIO FLAG", flgs, "A", destination, ", PORTA", port, "-----")
     res = scapy.sr(scapy.IP(dst=destination)/scapy.TCP(dport=port,flags=flgs), timeout=4)
     print("--- RISULTATI: ---")
@@ -286,7 +286,7 @@ Il pacchetto è salvato nel file \texttt{/wireshark/tcp{\textunderscore}all{\tex
 In questa prova ho cercato di simulare un three-way handshake con un mio server HTTP: riporto punto per punto la spiegazione di ogni pacchetto riferendomi al numero progressivo riportato dalla cattura di wireshark.
 \begin{enumerate}
 	\item Ho generato un segmento con il flag SYN attivo, per far partire il three-way handshake
-	\item Il server conferma la sua disponibilità ad aprire la connessione inviado un segmento con SYN e ACK attivi
+	\item Il server conferma la sua disponibilità ad aprire la connessione inviando un segmento con SYN e ACK attivi
 	\item Poiché stavo generando i pacchetti a mano con lo script, ho impiegato un po' di tempo per generare l'ACK di risposta, causando la scadenza del tempo di timeout del server (ovvero credeva che il suo pacchetto SYN ACK si fosse perso per la rete)
 	\item Come il punto 3
 	\item Questo segmento contiene l'ACK che ho generato, che avrebbe dovuto terminare il three-way handshake confermando l'apertura della connessione
@@ -294,5 +294,10 @@ In questa prova ho cercato di simulare un three-way handshake con un mio server 
 \end{enumerate}
 Il risultato della cattura di whireshark è salvato nel file \texttt{/wireshark/tcp{\textunderscore}bad{\textunderscore}ack.pcap} .
 
+\chapter{Commenti finali}
+\section{Differenze tra ICMP e TCP}
+ICMP e TCP sono due protocolli completamente differenti: il primo appartiene al \textbf{livello 3} del modello ISO/OSI (livello rete del TCP/IP), il secondo al \textbf{livello 4} ISO/OSI (livello di trasporto del TCP/IP).
+Mentre ICMP è utilizzato per ottenere informazioni diagnostiche dalla rete (abbiamo visto che possiamo eseguire il ping verso un host per verificarne la raggiungibilità), TCP è utilizzato per garantire affidabilità (controllo di flusso, rilevazione di errore, controllo della congestione, ecc...) instaurando una connessione basata su un livello per sua natura inaffidabile, ovvero il livello rete.
+Abbiamo infine notato che nel segmento TCP abbiamo indicate le porte del mittente e del destinatario, mentre nei pacchetti ICMP no: questo è dovuto al fatto che TCP è un protocollo di livello superiore rispetto ad IP, quindi le porte sono le SAP (Service Access Point) che mettono in comunicazione il livello 3 con il livello 4.
 
 \end{document}
