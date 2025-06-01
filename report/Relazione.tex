@@ -100,8 +100,8 @@ Creare e inviare pacchetti ICMP e TCP con Scapy, catturarli con Wireshark e anal
 \subsubsection{Output atteso}
 
 \begin{itemize}
-	\item Script Python con Scapy
-	\item File .pcap della cattura
+	\item Script Python con Scapy (\texttt{/src/script.py})
+	\item File .pcap della cattura (presenti nella cartella \texttt{/wireshark})
 	\item Relazione con screenshot e commenti tecnici
 \end{itemize}
 
@@ -180,6 +180,8 @@ def send_tcp_syn(destination, port):
 \end{lstlisting}
 
 \section{Analisi del traffico con Wireshark}
+Il file della cattura contenente i pacchetti sniffati su cui sono stati effettuati gli screenshot, è il file \texttt{/wireshark/tcp{\textunderscore}syn.pcap} .
+
 \subsection{Richiesta TCP con SYN attivo}
 \begin{figure}[H]
 	\centering
@@ -234,6 +236,63 @@ Per questo motivo il server crede che il suo SYN ACK non sia mai arrivato a dest
 \chapter{Segmenti TCP con flag personalizzati}
 
 \section{Generazione dei pacchetti con Scapy}
+La generazione di segmenti TCP attivando flag personalizzati è resa molto semplice dalla libreria scapy: è sufficiente creare una stringa conentente un carattere per ogni flag scelto, come riportato nel Listing \ref{code:tcp_flags}.
+Ad esempio per attivare i flag FIN e ACK bisogna settare \texttt{flags="FA"}. \\
+Nella funzione che ho scritto, lascio scegiere all'utente quali flag vuole abilitare.
+
+\begin{lstlisting}[language=Python, caption={Funzione python per la generazione di un segmento \texttt{TCP} con flag attivabili a scelta}, label={code:tcp_flags}]
+import scapy.all as scapy
+
+def send_tcp_flags(destination, port):
+    print("----- FLAG DISPONIBILI: -----")
+    print("F - FIN")
+    print("S - SYN")
+    print("R - RST")
+    print("P - PSH")
+    print("A - ACK")
+    print("U - URG")
+    print("E - ECE")
+    print("C - CWR")
+    print("\nDigitare i caratteri dei flag da attivare (ad esempio \"SR\" per i flag SYN e RST)\n>", end=" ")
+    flgs = input()
+    print("----- INVIO FLAG", flgs, "A", destination, ", PORTA", port, "-----")
+    res = scapy.sr(scapy.IP(dst=destination)/scapy.TCP(dport=port,flags=flgs), timeout=4)
+    print("--- RISULTATI: ---")
+    for r in res:
+        r.show()
+    print()
+\end{lstlisting}
+
 \section{Analisi del traffico con Wireshark}
+
+\subsection{Tutti i flag attivi}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_all_flags}
+ 	\caption{Dettaglio del pacchetto inviato con tutti i flag attivi}
+	\label{tcp_all_flags}
+\end{figure}
+Tramite la funzione sopra descritta, ho inviato un segmento TCP al server HTTP \texttt{google.com:80} abilitando tutti i flag possibili.
+Questa operazione non ha ovviamente alcun senso, infatti dalla cattura si vede che non ho ricevuto nessuna risposta dal server. 
+Il pacchetto è salvato nel file \texttt{/wireshark/tcp{\textunderscore}all{\textunderscore}flags.pcap} .
+
+\subsection{Three-way handshake}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{tcp_bad_ack_packets}
+ 	\caption{Sequenza dei pacchetti inviati nel tentativo di simulare un three-way handshake}
+	\label{tcp_bad_ack}
+\end{figure}
+In questa prova ho cercato di simulare un three-way handshake con un mio server HTTP: riporto punto per punto la spiegazione di ogni pacchetto riferendomi al numero progressivo riportato dalla cattura di wireshark.
+\begin{enumerate}
+	\item Ho generato un segmento con il flag SYN attivo, per far partire il three-way handshake
+	\item Il server conferma la sua disponibilità ad aprire la connessione inviado un segmento con SYN e ACK attivi
+	\item Poiché stavo generando i pacchetti a mano con lo script, ho impiegato un po' di tempo per generare l'ACK di risposta, causando la scadenza del tempo di timeout del server (ovvero credeva che il suo pacchetto SYN ACK si fosse perso per la rete)
+	\item Come il punto 3
+	\item Questo segmento contiene l'ACK che ho generato, che avrebbe dovuto terminare il three-way handshake confermando l'apertura della connessione
+	\item Visto che il pacchetto generato al punto 5 contiene il flag di ACK ma ha sequence number e ack number errati, il server risponde con un segmento contenente il flag RST per resettare la connessione poiché si sono verificati questi errori nella numerazione dei segmenti
+\end{enumerate}
+Il risultato della cattura di whireshark è salvato nel file \texttt{/wireshark/tcp{\textunderscore}bad{\textunderscore}ack.pcap} .
+
 
 \end{document}
